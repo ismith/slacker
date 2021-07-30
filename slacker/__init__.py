@@ -27,7 +27,7 @@ from slacker.utilities import (
 __version__ = '0.14.0'
 
 DEFAULT_TIMEOUT = 10
-DEFAULT_RETRIES = 0
+DEFAULT_RETRIES = 1
 # seconds to wait after a 429 error if Slack's API doesn't provide one
 DEFAULT_WAIT = 20
 
@@ -65,16 +65,15 @@ class BaseAPI(object):
         self.rate_limit_retries = rate_limit_retries
 
     def _request(self, request_method, method, **kwargs):
-        if self.token:
-            kwargs.setdefault('params', {})['token'] = self.token
-
         url = get_api_url(method)
 
         # while we have rate limit retries left, fetch the resource and back
         # off as Slack's HTTP response suggests
         for retry_num in range(self.rate_limit_retries):
             response = request_method(
-                url, timeout=self.timeout, proxies=self.proxies, **kwargs
+                url, timeout=self.timeout, proxies=self.proxies,
+                headers={'Authorization': 'Bearer {}'.format(self.token)},
+                **kwargs
             )
 
             if response.status_code == requests.codes.ok:
