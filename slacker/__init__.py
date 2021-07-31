@@ -56,9 +56,10 @@ class Response(object):
 
 
 class BaseAPI(object):
-    def __init__(self, token=None, timeout=DEFAULT_TIMEOUT, proxies=None,
-                 session=None, rate_limit_retries=DEFAULT_RETRIES):
+    def __init__(self, token=None, cookie=None, timeout=DEFAULT_TIMEOUT,
+            proxies=None, session=None, rate_limit_retries=DEFAULT_RETRIES):
         self.token = token
+        self.cookie = cookie
         self.timeout = timeout
         self.proxies = proxies
         self.session = session
@@ -66,13 +67,18 @@ class BaseAPI(object):
 
     def _request(self, request_method, method, **kwargs):
         url = get_api_url(method)
+        headers = {}
+        if self.token is not None:
+            headers['Authorization'] = 'Bearer {}'.format(self.token)
+        if self.cookie is not None:
+            headers['Cookie'] = 'd={}'.format(self.cookie)
 
         # while we have rate limit retries left, fetch the resource and back
         # off as Slack's HTTP response suggests
         for retry_num in range(self.rate_limit_retries):
             response = request_method(
                 url, timeout=self.timeout, proxies=self.proxies,
-                headers={'Authorization': 'Bearer {}'.format(self.token)},
+                headers=headers,
                 **kwargs
             )
 
@@ -1185,13 +1191,14 @@ class IncomingWebhook(object):
 class Slacker(object):
     oauth = OAuth(timeout=DEFAULT_TIMEOUT)
 
-    def __init__(self, token, incoming_webhook_url=None,
+    def __init__(self, token, cookie=None, incoming_webhook_url=None,
                  timeout=DEFAULT_TIMEOUT, http_proxy=None, https_proxy=None,
                  session=None, rate_limit_retries=DEFAULT_RETRIES):
 
         proxies = self.__create_proxies(http_proxy, https_proxy)
         api_args = {
             'token': token,
+            'cookie': cookie,
             'timeout': timeout,
             'proxies': proxies,
             'session': session,
